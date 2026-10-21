@@ -1,10 +1,10 @@
 
 # Helpful Equations
 import RequiredEquations as he
-import numpy as np
+import numpy as np # type: ignore
 import math
-import matplotlib.pyplot as plt
-import cea
+import matplotlib.pyplot as plt # type: ignore
+import cea # type: ignore
 
 
 mach0 = 3.2
@@ -13,6 +13,12 @@ temp_0 = 268.3  #{Kelvin @ 10k}
 tot_press_0 = he.tp(mach0,static_pressure_10k)
 density_0 = .905 # {kg/m^3}
 
+# Virtual Environments:
+# python -m venv env
+# env\Scripts\activate
+# deactivate
+# pip freeze > requirements.txt (makes requirements file)
+# pip install -r requirements.txt
 
 
 """Inlet"""

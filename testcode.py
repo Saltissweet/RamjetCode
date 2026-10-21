@@ -1,6 +1,6 @@
 gamma = 1.4
 specgasconst = 287  #{J/(kg*K)}
-import numpy as np
+import numpy as np # type: ignore
 import math
 import RequiredEquations as he
 

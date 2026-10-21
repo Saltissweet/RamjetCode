@@ -2,8 +2,8 @@
 # Currently Includes: Oblique Shock Relations, Total Pressure Calculator, Static Pressure Calculator, Normal Shock Relations
 
 import math
-from scipy.optimize import brentq
-import numpy as np
+from scipy.optimize import brentq # type: ignore
+import numpy as np # type: ignore
 
 # global variables
 gamma = 1.4
