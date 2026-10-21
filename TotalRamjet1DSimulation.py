@@ -75,13 +75,14 @@ e_sub_press_stat = he.sp(exit_sub_mach, sub_press_tot)
 e_sub_temp_stat = he.st(exit_sub_mach, sub_temp_tot)
 e_sub_dens_stat = he.sd(exit_sub_mach, sub_dens_tot)
 
-# print("Mass Flow Inlet: (kg/s?) " + str(inlet_sub_massflow))
-# print("Subsonic Diffuser Exit Area: " + str(exit_sub_area))
-# print("Subsonic Diffuser Exit Pressure S: " + str(exit_sub_press_static))
-# print("Subsonic Diffuser Exit Temperature S: " + str(exit_sub_temp_static))
-# print("Subsonic Diffuser Exit Density S: " + str(exit_sub_dens_static))
-# print("Subsonic Diffuser Inlet Mach: " + str(inlet_sub_mach))
-# print("Subsonic Diffuser Exit Mach: " + str(exit_sub_mach))
+print("Mass Flow Inlet: (kg/s?) " + str(inlet_sub_massflow))
+print("Subsonic Diffuser Exit Area: " + str(e_sub_area))
+print("Subsonic Diffuser Exit Pressure S: " + str(e_sub_press_stat))
+print("Subsonic Diffuser Exit Temperature S: " + str(e_sub_temp_stat))
+print("Subsonic Diffuser Exit Density S: " + str(e_sub_dens_stat))
+print("Subsonic Diffuser Inlet Mach: " + str(inlet_sub_mach))
+print("Subsonic Diffuser Exit Mach: " + str(exit_sub_mach))
+print(he.speed(exit_sub_mach, e_sub_temp_stat)[0])
 
 
 """Combustor"""
@@ -99,7 +100,7 @@ e_sub_dens_stat = he.sd(exit_sub_mach, sub_dens_tot)
 # Total Dist: Allot 1 meter (big), [Part 1: .2m, Part 2: .7m, Part3: .1m]
 # Assume Stainless Steel For Friction Factor = .02
 # Assume Heat Additions is 1000 kj/kg
-heatadd = 1e6
+heatadd = 43.5e6
 frictfact = .02
 
 # Get "Diameter", but I actually made a 2-D ramjet, so it is actually cuboidal shhhh
@@ -265,36 +266,36 @@ TSFC = 3600 * (mdot_fuel/F_net);"""
 
 
 
-# # Plotting Combustor Rayleigh + Fanno
-# fig, axes = plt.subplots(nrows=3, ncols=2, sharex=True)
-# ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
+# Plotting Combustor Rayleigh + Fanno
+fig, axes = plt.subplots(nrows=3, ncols=2, sharex=True)
+ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
 
-# ax1.plot(locs, c_machs)
-# ax1.set_ylabel('Mach #')
+ax1.plot(locs, c_machs)
+ax1.set_ylabel('Mach #')
 
-# ax2.plot(locs, c_pressures)
-# ax2.set_ylabel('Pressure')
+ax2.plot(locs, c_pressures)
+ax2.set_ylabel('Pressure')
 
-# ax3.plot(locs, c_temps)
-# ax3.set_ylabel('Temperature')
+ax3.plot(locs, c_temps)
+ax3.set_ylabel('Temperature')
 
-# ax4.plot(locs, c_densities)
-# ax4.set_ylabel('Density')
+ax4.plot(locs, c_densities)
+ax4.set_ylabel('Density')
 
-# ax5.plot(locs, c_rads)
-# ax5.set_ylabel('Radius')
-# ax5.set_xlabel('Location')
+ax5.plot(locs, c_rads)
+ax5.set_ylabel('Radius')
+ax5.set_xlabel('Location')
 
-# ax6.plot(locs, c_speeds)
-# ax6.set_ylabel('Speed')
-# ax6.set_xlabel('Location')
+ax6.plot(locs, c_speeds)
+ax6.set_ylabel('Speed')
+ax6.set_xlabel('Location')
 
-# plt.tight_layout()
-# plt.show(block = False)
+plt.tight_layout()
+plt.show(block = False)
 
-# # close it?
-# close = 0
-# close = input('type literally anything and hit enter to close the window \n')
-# if close != 0:
-#     plt.close()
+# close it?
+close = 0
+close = input('type literally anything and hit enter to close the window \n')
+if close != 0:
+    plt.close()
 
