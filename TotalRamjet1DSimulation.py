@@ -1,3 +1,5 @@
+# 1D Simulation Code: Made by Sai
+
 
 # Helpful Equations
 import RequiredEquations as he
@@ -13,6 +15,8 @@ temp_0 = 268.3  #{Kelvin @ 10k}
 tot_press_0 = he.tp(mach0,static_pressure_10k)
 density_0 = .905 # {kg/m^3}
 
+
+## To Help Sai
 # Virtual Environments:
 # python -m venv env
 # env\Scripts\activate
@@ -102,14 +106,14 @@ frictfact = .02
 diam_comb1 = 2*math.sqrt(e_sub_area/math.pi)
 dist1 = .2
 
-# Part 1
+# Part 1 const area fanno
 exit_comb_pt1 = he.ff(exit_sub_mach, e_sub_press_stat, e_sub_temp_stat, e_sub_dens_stat, frictfact, dist1, diam_comb1)
 e1_mach = exit_comb_pt1[0]
 e1_press = exit_comb_pt1[1]
 e1_temp = exit_comb_pt1[2]
 e1_dens = exit_comb_pt1[3]
 
-# Part2
+# Part2 changing area const pressure fanno + rayliegh + isentropic
 numsteps = int(1e4)
 locs = np.linspace(0, 0.7, numsteps)
 d_dist = .7/numsteps
@@ -173,6 +177,12 @@ for i in range(1, numsteps):
 result = [x / math.pi for x in c_areas]
 c_rads = [math.sqrt(x) for x in result]
 
+# Combustor velocity (not mach)
+# A = root gamma rt
+gamma = 1.3
+specgasconst = 287
+c_speeds = [he.speed(x, y)[0] for x, y in zip(c_machs, c_temps)]
+
 
 # Exit Part 2 vals
 e2_area = c_areas[numsteps-1]
@@ -181,38 +191,108 @@ e2_press = c_pressures[numsteps-1]
 e2_temp = c_temps[numsteps-1]
 e2_dens = c_densities[numsteps-1]
 
-# Part 3
+# Part 3 const area fanno
 # Get "Diameter"
 diam_comb3 = 2*math.sqrt(e2_area / math.pi)
 dist3 = .1
 
 exit_comb_pt1 = he.ff(e2_mach, e2_press, e2_temp, e2_dens, frictfact, dist3, diam_comb3)
+
+# Final Vals of Combustor
 e3_mach = exit_comb_pt1[0]
 e3_press = exit_comb_pt1[1]
 e3_temp = exit_comb_pt1[2]
 e3_dens = exit_comb_pt1[3]
 
+## Nozzle Calculations (isentropic nozzle)
+n_throat_area = he.fta(e3_mach, e2_area)
+n_presstot = he.tp(e3_mach, e3_press)
+n_temptot = he.tt(e3_mach, e3_temp)
+n_denstot = he.td(e3_mach, e3_dens)
+# goes back to subsonic
+n_finalmach = he.fmp(n_presstot, static_pressure_10k)
+n_final_temp = he.st(n_finalmach, n_temptot)
+n_final_dens = he.sd(n_finalmach, n_denstot)
+n_final_area = he.fwa(n_finalmach, n_throat_area)
+n_final_speed = he.speed(n_finalmach, n_final_temp)[0]
 
-# Mach, Press, Temp, Density,
-fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(nrows=5, ncols=1, sharex=True)
 
-ax1.plot(locs, c_machs)
-ax1.set_ylabel('Mach # Across Combustor')
+print(n_finalmach)
+print(n_final_area)
 
-ax2.plot(locs, c_pressures)
-ax2.set_ylabel('Pressure Across Combustor')
 
-ax3.plot(locs, c_temps)
-ax3.set_ylabel('Temperature Across Combustor')
+# Idk Assume gamma = 1.4 again
+gamma = 1.4
+c_p = gamma*specgasconst/(gamma-1)
+eta_comb = .85 # combustion efficiency? do I need to use this bih in my combustor? IDK
 
-ax4.plot(locs, c_densities)
-ax4.set_ylabel('Density Across Combustor')
+f_stoich = 0.067558 # jp4 stoich
+f = c_p*(n_temptot - sub_temp_tot)/ (eta_comb*heatadd - (c_p - n_temptot))
+phi = f/f_stoich
 
-ax5.plot(locs, c_rads)
-ax5.set_ylabel('Radius Across Combustor')
+massflowair = inlet_sub_massflow/50
+print(massflowair)
+massflowfuel = massflowair * f
+massflowexit = massflowair+massflowfuel
 
-ax5.set_xlabel('Location Across Combustor')
+initialspeed = he.speed(mach0, temp_0)[0]
 
-plt.tight_layout()
-plt.grid()
-plt.show()
+# everything on is from Tushars code, I dont feel like doing more (D inlet external)
+F_gross = massflowexit * n_final_speed
+F_ram = massflowair * initialspeed
+F_pressure = static_pressure_10k * n_final_area - static_pressure_final * inlet_sub_area
+F_full = F_gross - F_ram + F_pressure
+specific_thrust = F_full/massflowair
+g0 = 9.80665
+D_inlet_external = 52.9686 
+F_net = F_full - D_inlet_external
+
+isp = F_net / (massflowfuel * g0) # incorp
+tsfc = 3600 * (massflowfuel/F_net)
+print(F_ram)
+
+
+"""F_gross = mdot_exit * V9;
+F_ram = mdot_air * V0;
+F_pressure = (p9 - p0) * A9;
+F_full = F_gross - F_ram + F_pressure;
+F_net = F_full - D_inlet_external;
+specific_thrust = F_full / mdot_air;
+Isp = F_net / (mdot_fuel * g0);
+TSFC = 3600 * (mdot_fuel/F_net);"""
+
+
+
+# # Plotting Combustor Rayleigh + Fanno
+# fig, axes = plt.subplots(nrows=3, ncols=2, sharex=True)
+# ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
+
+# ax1.plot(locs, c_machs)
+# ax1.set_ylabel('Mach #')
+
+# ax2.plot(locs, c_pressures)
+# ax2.set_ylabel('Pressure')
+
+# ax3.plot(locs, c_temps)
+# ax3.set_ylabel('Temperature')
+
+# ax4.plot(locs, c_densities)
+# ax4.set_ylabel('Density')
+
+# ax5.plot(locs, c_rads)
+# ax5.set_ylabel('Radius')
+# ax5.set_xlabel('Location')
+
+# ax6.plot(locs, c_speeds)
+# ax6.set_ylabel('Speed')
+# ax6.set_xlabel('Location')
+
+# plt.tight_layout()
+# plt.show(block = False)
+
+# # close it?
+# close = 0
+# close = input('type literally anything and hit enter to close the window \n')
+# if close != 0:
+#     plt.close()
+

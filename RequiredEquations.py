@@ -6,6 +6,7 @@ from scipy.optimize import brentq # type: ignore
 import numpy as np # type: ignore
 
 # global variables
+# Canino said gamma is like 1.3 when you increase pressure
 gamma = 1.4
 specgasconst = 287  #{J/(kg*K)}
 
@@ -167,7 +168,11 @@ def NormalShock(MachIn, PressTotIn, TempIn, DensIn) -> tuple:
 # SUBSONIC RAYLIEGH FLOW, for supersonic change the bounds of the if statement
 # Inputs: Mach In, Static Pressure In, Static Temperature In, Static Density In, Heat Added
 # Outputs: Mach Out, Static Pressure Out, Static Temperature Out, Static Density Out
-def RayleighFlow1(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn) -> tuple:
+def RayleighFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn) -> tuple:
+    # Canino said gamma is like 1.3 when you increase pressure
+    # Rayleigh flow is basically only used in combustor
+    # If you want to check if this works replace gamma with whatever they use in the problem
+    gamma = 1.3
     # All this is to solve for MachOut
     c_p = gamma*specgasconst/(gamma-1)
     totaltemp1 = TotalTemp(MachIn, TempStatIn)
@@ -203,6 +208,10 @@ def RayleighFlow1(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn) -> tuple:
 # Inputs: Mach In, Static Pressure In, Static Temperature In, Static Density In, Friction Factor (fbar), Distance, Diameter
 # Outputs: Mach Out, Static Pressure Out, Static Temperature Out, Static Density Out
 def FannoFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, FrictFact, Dist, Diam) -> tuple:
+    # Canino said gamma is like 1.3 when you increase pressure
+    # Fanno flow is basically only used in combustor/past the inlet so its hot flow
+    # If you want to check if this works replace gamma with whatever they use in the problem
+    gamma = 1.3
     # Simplify Calcs
     def value(Mach):
         return ((gamma+1)/(2+(gamma-1)*Mach**2))
@@ -277,7 +286,7 @@ def ff(MachIn, PressStatIn, TempStatIn, DensStatIn, FrictFact, Dist, Diam):
     return FannoFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, FrictFact, Dist, Diam)
 
 def rf(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn):
-    return RayleighFlow1(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn)
+    return RayleighFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn)
 
 def fmp(presstot, press):
     return FindMachPress(presstot, press)
