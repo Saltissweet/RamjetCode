@@ -250,6 +250,8 @@ F_net = F_full - D_inlet_external
 isp = F_net / (massflowfuel * g0) # incorp
 tsfc = 3600 * (massflowfuel/F_net)
 print(F_full)
+print(F_ram)
+print(F_pressure)
 
 
 """F_gross = mdot_exit * V9;
