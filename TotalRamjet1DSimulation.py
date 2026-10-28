@@ -7,10 +7,11 @@ import numpy as np # type: ignore
 import math
 import matplotlib.pyplot as plt # type: ignore
 import cea # type: ignore
+import CoolProp.CoolProp as cp # type: ignore
 
 
 mach0 = 3.2
-static_pressure_10k = 69680  #{Pascals @ 10k}
+static_pressure_10k = 11597  #{Pascals @ 50k}
 temp_0 = 268.3  #{Kelvin @ 10k}
 tot_press_0 = he.tp(mach0,static_pressure_10k)
 density_0 = .905 # {kg/m^3}
@@ -67,7 +68,6 @@ sub_temp_tot = he.tt(inlet_sub_mach, inlet_sub_temp)
 sub_dens_tot = he.td(inlet_sub_mach, inlet_sub_dens)
 inlet_sub_velocity = he.speed(inlet_sub_mach, inlet_sub_temp)[0]
 inlet_sub_massflow = he.massflow(inlet_sub_velocity, inlet_sub_dens, inlet_sub_area)
-
 theor_throat_area_sub = he.fta(inlet_sub_mach, inlet_sub_area)
 # e for exit
 e_sub_area = he.fwa(exit_sub_mach, theor_throat_area_sub)
@@ -75,14 +75,15 @@ e_sub_press_stat = he.sp(exit_sub_mach, sub_press_tot)
 e_sub_temp_stat = he.st(exit_sub_mach, sub_temp_tot)
 e_sub_dens_stat = he.sd(exit_sub_mach, sub_dens_tot)
 
-print("Mass Flow Inlet: (kg/s?) " + str(inlet_sub_massflow))
-print("Subsonic Diffuser Exit Area: " + str(e_sub_area))
-print("Subsonic Diffuser Exit Pressure S: " + str(e_sub_press_stat))
-print("Subsonic Diffuser Exit Temperature S: " + str(e_sub_temp_stat))
-print("Subsonic Diffuser Exit Density S: " + str(e_sub_dens_stat))
-print("Subsonic Diffuser Inlet Mach: " + str(inlet_sub_mach))
-print("Subsonic Diffuser Exit Mach: " + str(exit_sub_mach))
-print(he.speed(exit_sub_mach, e_sub_temp_stat)[0])
+# print("Mass Flow Inlet: (kg/s?) " + str(inlet_sub_massflow))
+# print("Subsonic Diffuser Exit Area: " + str(e_sub_area))
+# print("Subsonic Diffuser Exit Pressure S: " + str(e_sub_press_stat))
+# print("Subsonic Diffuser Exit Temperature S: " + str(e_sub_temp_stat))
+# print("Subsonic Diffuser Exit Density S: " + str(e_sub_dens_stat))
+# print("Subsonic Diffuser Inlet Mach: " + str(inlet_sub_mach))
+# print("Subsonic Diffuser Exit Mach: " + str(exit_sub_mach))
+# print(he.speed(exit_sub_mach, e_sub_temp_stat)[0])
+# print(he.tp(3.2, static_pressure_10k))
 
 
 """Combustor"""
@@ -218,41 +219,41 @@ n_final_area = he.fwa(n_finalmach, n_throat_area)
 n_final_speed = he.speed(n_finalmach, n_final_temp)[0]
 
 
-print(n_finalmach)
-print(n_final_area)
+# print(n_finalmach)
+# print(n_final_area)
 
 
-# Idk Assume gamma = 1.4 again
-gamma = 1.4
-c_p = gamma*specgasconst/(gamma-1)
-eta_comb = .85 # combustion efficiency? do I need to use this bih in my combustor? IDK
+# # Idk Assume gamma = 1.4 again
+# gamma = 1.4
+# c_p = gamma*specgasconst/(gamma-1)
+# eta_comb = .85 # combustion efficiency? do I need to use this bih in my combustor? IDK
 
-f_stoich = 0.067558 # jp4 stoich
-f = c_p*(n_temptot - sub_temp_tot)/ (eta_comb*heatadd - (c_p - n_temptot))
-phi = f/f_stoich
+# f_stoich = 0.067558 # jp4 stoich
+# f = c_p*(n_temptot - sub_temp_tot)/ (eta_comb*heatadd - (c_p - n_temptot))
+# phi = f/f_stoich
 
-massflowair = inlet_sub_massflow/50
-print(massflowair)
-massflowfuel = massflowair * f
-massflowexit = massflowair+massflowfuel
+# massflowair = inlet_sub_massflow/50
+# print(massflowair)
+# massflowfuel = massflowair * f
+# massflowexit = massflowair+massflowfuel
 
-initialspeed = he.speed(mach0, temp_0)[0]
+# initialspeed = he.speed(mach0, temp_0)[0]
 
-# everything on is from Tushars code, I dont feel like doing more (D inlet external)
-F_gross = massflowexit * n_final_speed
-F_ram = massflowair * initialspeed
-F_pressure = static_pressure_10k * n_final_area - static_pressure_final * inlet_sub_area
-F_full = F_gross - F_ram + F_pressure
-specific_thrust = F_full/massflowair
-g0 = 9.80665
-D_inlet_external = 52.9686 
-F_net = F_full - D_inlet_external
+# # everything on is from Tushars code, I dont feel like doing more (D inlet external)
+# F_gross = massflowexit * n_final_speed
+# F_ram = massflowair * initialspeed
+# F_pressure = static_pressure_10k * n_final_area - static_pressure_final * inlet_sub_area
+# F_full = F_gross - F_ram + F_pressure
+# specific_thrust = F_full/massflowair
+# g0 = 9.80665
+# D_inlet_external = 52.9686 
+# F_net = F_full - D_inlet_external
 
-isp = F_net / (massflowfuel * g0) # incorp
-tsfc = 3600 * (massflowfuel/F_net)
-print(F_full)
-print(F_ram)
-print(F_pressure)
+# isp = F_net / (massflowfuel * g0) # incorp
+# tsfc = 3600 * (massflowfuel/F_net)
+# print(F_full)
+# print(F_ram)
+# print(F_pressure)
 
 
 """F_gross = mdot_exit * V9;
@@ -266,36 +267,36 @@ TSFC = 3600 * (mdot_fuel/F_net);"""
 
 
 
-# Plotting Combustor Rayleigh + Fanno
-fig, axes = plt.subplots(nrows=3, ncols=2, sharex=True)
-ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
+# # Plotting Combustor Rayleigh + Fanno
+# fig, axes = plt.subplots(nrows=3, ncols=2, sharex=True)
+# ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
 
-ax1.plot(locs, c_machs)
-ax1.set_ylabel('Mach #')
+# ax1.plot(locs, c_machs)
+# ax1.set_ylabel('Mach #')
 
-ax2.plot(locs, c_pressures)
-ax2.set_ylabel('Pressure')
+# ax2.plot(locs, c_pressures)
+# ax2.set_ylabel('Pressure')
 
-ax3.plot(locs, c_temps)
-ax3.set_ylabel('Temperature')
+# ax3.plot(locs, c_temps)
+# ax3.set_ylabel('Temperature')
 
-ax4.plot(locs, c_densities)
-ax4.set_ylabel('Density')
+# ax4.plot(locs, c_densities)
+# ax4.set_ylabel('Density')
 
-ax5.plot(locs, c_rads)
-ax5.set_ylabel('Radius')
-ax5.set_xlabel('Location')
+# ax5.plot(locs, c_rads)
+# ax5.set_ylabel('Radius')
+# ax5.set_xlabel('Location')
 
-ax6.plot(locs, c_speeds)
-ax6.set_ylabel('Speed')
-ax6.set_xlabel('Location')
+# ax6.plot(locs, c_speeds)
+# ax6.set_ylabel('Speed')
+# ax6.set_xlabel('Location')
 
-plt.tight_layout()
-plt.show(block = False)
+# plt.tight_layout()
+# plt.show(block = False)
 
-# close it?
-close = 0
-close = input('type literally anything and hit enter to close the window \n')
-if close != 0:
-    plt.close()
+# # close it?
+# close = 0
+# close = input('type literally anything and hit enter to close the window \n')
+# if close != 0:
+#     plt.close()
 

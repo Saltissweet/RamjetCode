@@ -1,290 +1,235 @@
-# Helpful Functions Calculator
-# Currently Includes: Oblique Shock Relations, Total Pressure Calculator, Static Pressure Calculator, Normal Shock Relations
-
-import math
-from scipy.optimize import brentq # type: ignore
+import RequiredEquations as he
 import numpy as np # type: ignore
+import math
+import matplotlib.pyplot as plt # type: ignore
+import cea # type: ignore
+import CoolProp.CoolProp as cp # type: ignore
+from scipy.optimize import brentq # type: ignore
 
-# global variables
-# Canino said gamma is like 1.3 when you increase pressure
-gamma = 1.4
-specgasconst = 287  #{J/(kg*K)}
+mach0 = 3.2
+static_pressure_10k = 11597  #{Pascals @ 50k}
+temp_0 = 268.3  #{Kelvin @ 10k}
+tot_press_0 = he.tp(mach0,static_pressure_10k)
+density_0 = .905 # {kg/m^3}
+specgasconst = 287
 
-"""ISENTROPIC EQUATION CALCULATORS"""
-
-# Isentropic Total Pressure Calculator
-# Inputs: Mach Number, Static Pressure
-# Outputs: Total Pressure
-def TotalPressure(Mach, static_pressure):
-    equation = (1 + ((gamma-1)/2) * Mach**2)
-    top = (gamma/(gamma-1))
-    totalpressure = equation**top * static_pressure
-    return (totalpressure)
-
-# Isentropic Static Pressure Calculator
-# Inputs: Mach Number, Total Pressure
-# Outputs: Static Pressure
-def StaticPressure(Mach, total_pressure):
-    equation = (1 + ((gamma-1)/2) * Mach**2)
-    top = (gamma/(gamma-1))
-    static_pressure = total_pressure / equation**top
-    return (static_pressure)
-
-# Isentropic Throat Area Calculator
-# Inputs: Mach Number, Current Area
-# Outputs: Throat Area
-def FindThroatArea(MachIn, Area):
-    eqbase = (2/(gamma+1)*(1+(gamma-1)/2 * MachIn**2))
-    eqexponent = .5*(gamma+1)/(gamma-1)
-    arearatioT = (1/MachIn) * eqbase**eqexponent
-    throatarea = Area/arearatioT
-    return throatarea
-
-# Isentropic Wanted Area Calculator
-# Inputs: Wanted Mach Number Out, Throat Area
-# Outputs: Wanted Area
-def FindWantedArea(MachOut, ThroatArea):
-    eqbase = (2/(gamma+1)) * (1 + ((gamma-1)/2)*MachOut**2)
-    eqexponent = .5*((gamma+1)/(gamma-1))
-    arearatioW = (1/MachOut) * eqbase ** eqexponent
-    wantedarea = ThroatArea*arearatioW
-    return wantedarea
-
-# Isentropic Total Temp Calculator
-# Inputs: Mach Number, Static Temp
-# Outputs: Total Temp
-def TotalTemp(Mach, statictemp):
-    equation = (1 + ((gamma-1)/2) * Mach**2)
-    totaltemp = statictemp * equation
-    return (totaltemp)
-
-# Isentropic Static Temp Calculator
-# Inputs: Mach Number, Total Temp
-# Outputs: Static Temp
-def StaticTemp(Mach, totaltemp):
-    equation = (1 + ((gamma-1)/2) * Mach**2)
-    statictemp = totaltemp / equation
-    return (statictemp)
-
-# Isentropic Total Density Calculator
-# Inputs: Mach Number, Static Density
-# Outputs: Total Density
-def TotalDensity(Mach, static_density):
-    equation = (1 + ((gamma-1)/2) * Mach**2)
-    top = (1/(gamma-1))
-    totaldensity = equation**top * static_density
-    return (totaldensity)
-
-# Isentropic Static Density Calculator
-# Inputs: Mach Number, Total Pressure
-# Outputs: Static Density
-def StaticDensity(Mach, total_density):
-    equation = (1 + ((gamma-1)/2) * Mach**2)
-    top = (1/(gamma-1))
-    static_density = total_density / equation**top
-    return (static_density)
-
-def FindMachPress(presstot, press):
-    frac = (presstot/press)**((gamma-1)/gamma)
-    Mach = math.sqrt((frac-1)*2/(gamma-1))
-    return Mach
-
-# Calculate Speed of Flow, and speed of sound
-def speed(Mach, Temperature):
-    a = math.sqrt(Temperature * gamma * specgasconst)
-    v = a * Mach                  
-    return (v, a) 
-
-def massflow(speed, density, area):
-    return(speed * density * area)
-
-def machnumber(Speed, Temperature):
-    a = math.sqrt(Temperature * gamma * specgasconst)
-    mach = Speed/a
-    return(mach, a)
+## To Help Sai
+# Virtual Environments:
+# python -m venv env
+# env\Scripts\activate
+# deactivate
+# pip freeze > requirements.txt (makes requirements file)
+# pip install -r requirements.txt
 
 
+"""Inlet"""
+initangle = math.ceil(math.degrees(math.asin(1/mach0)))
+press_tot_ideal = 0
+angles = [0,0]
+for i in np.arange(initangle+3,40,.5):
+    output1 = he.osr(mach0, i, tot_press_0, temp_0, density_0)
+    initangle2 = math.ceil(math.degrees(math.asin(1/output1[0])))
+    for j in np.arange(initangle2+3,50,.5):
+        output2 = he.osr(output1[0], j, output1[2], output1[3], output1[4])
+        output3 = he.nsr(output2[0], output2[2], output2[3], output2[4])
+        press_tot_final = output3[1]
+        if press_tot_final > press_tot_ideal:
+            press_tot_ideal = press_tot_final
+            angles = [i,j]
 
-"""COMPLICATED EQUATIONS"""
+# Recalc Final Outputs so you can print
+output1_final = he.osr(mach0, angles[0], tot_press_0, temp_0, density_0)
+output2_final = he.osr(output1_final[0], angles[1], output1_final[2], output1_final[3], output1_final[4])
+output3_final = he.nsr(output2_final[0], output2_final[2], output2_final[3], output2_final[4])
+static_pressure_final = he.sp(output3_final[0], output3_final[1])
 
-# Oblique Shock Relation Function
-# Inputs: Mach in, Beta, Pressure Total in, Temperature in
-# Outputs: Mach Out, Theta, Pressure Total out, Temperature out
-def ObliqueShock(MachIn, BetaRelative, PressTotIn, TempIn, DensIn) -> tuple:
-    BetaR = math.radians(BetaRelative)
-
-    # Calculate Wedge Angle
-    part1eq = (MachIn**2 * (math.sin(BetaR)**2)-1)/(MachIn**2 * (gamma + math.cos(2*BetaR))+2)
-    tantheta = (2/math.tan(BetaR))*part1eq
-    theta = math.atan(tantheta)
-
-    # Calculate Mach Out
-    part2eq = ((gamma-1) * MachIn**2 * math.sin(BetaR)**2 + 2)/(2*gamma*MachIn**2*math.sin(BetaR)**2 - (gamma-1))
-    MachOut = math.sqrt(part2eq/math.sin(BetaR-theta)**2)
-
-    # Calculate Pto out
-    part3_1eq = (((gamma+1)*MachIn**2*math.sin(BetaR)**2)/((gamma-1)*MachIn**2*math.sin(BetaR)**2 + 2))**(gamma/(gamma-1))
-    part3_2eq = ((gamma+1)/(2*gamma*MachIn**2*math.sin(BetaR)**2 - (gamma-1)))**(1/(gamma-1))
-    pt1_pt2 = part3_1eq * part3_2eq
-    PressTotOut = pt1_pt2 * PressTotIn
-
-    # Calculate T out
-    part4_topeq = (2*gamma*MachIn**2 * math.sin(BetaR)**2 - (gamma-1))*((gamma-1)*MachIn**2*math.sin(BetaR)**2 + 2)
-    part4_botteq = (gamma+1)**2*MachIn**2*math.sin(BetaR)**2
-    t1_t2 = part4_topeq/part4_botteq
-    TempOut = t1_t2 * TempIn
-
-    # Calculate Rho out
-    part5_eq = ((gamma+1)*MachIn**2 * math.sin(BetaR)**2)/((gamma-1)*MachIn**2 * math.sin(BetaR)**2 + 2)
-    DensOut = DensIn*part5_eq
-
-    return (MachOut, math.degrees(theta), PressTotOut, TempOut, DensOut)
+"""Subsonic Diffuser"""
+inlet_sub_mach = output3_final[0]
+sub_press_tot = output3_final[1]
+inlet_sub_temp = output3_final[2]
+inlet_sub_dens = output3_final[3]
+inlet_sub_area = 0.0182414692  #{m^2}
+exit_sub_mach = .15
 
 
-# Normal Shock Calculator
-# Inputs: Mach in, Pressure Total in, Temperature in
-# Outputs: Mach Out, Pressure Total out, Temperature out
-def NormalShock(MachIn, PressTotIn, TempIn, DensIn) -> tuple:
-    # Calculate Mach Out
-    MachOutSq = ((gamma-1)*MachIn**2+2)/(2*gamma*MachIn**2 -(gamma-1))
-    MachOut = math.sqrt(MachOutSq)
+sub_temp_tot = he.tt(inlet_sub_mach, inlet_sub_temp)
+sub_dens_tot = he.td(inlet_sub_mach, inlet_sub_dens)
+inlet_sub_velocity = he.speed(inlet_sub_mach, inlet_sub_temp)[0]
+inlet_sub_massflow = he.massflow(inlet_sub_velocity, inlet_sub_dens, inlet_sub_area)
 
-    # Calculate P tot out
-    p_eq_1 = (((gamma+1)*MachIn**2)/((gamma-1)*MachIn**2+2))**(gamma/(gamma-1))
-    p_eq_2 = ((gamma+1)/(2*gamma*MachIn**2-(gamma-1)))**(1/(gamma-1))
-    PressTotOut = p_eq_1*p_eq_2*PressTotIn
+theor_throat_area_sub = he.fta(inlet_sub_mach, inlet_sub_area)
+# e for exit
+e_sub_area = he.fwa(exit_sub_mach, theor_throat_area_sub)
+e_sub_press_stat = he.sp(exit_sub_mach, sub_press_tot)
+e_sub_temp_stat = he.st(exit_sub_mach, sub_temp_tot)
+e_sub_dens_stat = he.sd(exit_sub_mach, sub_dens_tot)
 
-    # Calculate T out
-    t_eq_top = (2*gamma*MachIn**2 - (gamma-1))*((gamma-1)*MachIn**2+2)
-    t_eq_bott = (gamma+1)**2*MachIn**2
-    TempOut = TempIn*t_eq_top/t_eq_bott
-
-    d_eq = ((gamma+1)*MachIn**2)/((gamma-1)*MachIn**2 + 2)
-    DensOut = DensIn*d_eq
-
-    return (MachOut, PressTotOut, TempOut, DensOut)
-
-
-# SUBSONIC RAYLIEGH FLOW, for supersonic change the bounds of the if statement
-# Inputs: Mach In, Static Pressure In, Static Temperature In, Static Density In, Heat Added
-# Outputs: Mach Out, Static Pressure Out, Static Temperature Out, Static Density Out
-def RayleighFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn) -> tuple:
-    # Canino said gamma is like 1.3 when you increase pressure
-    # Fanno flow is basically only used in combustor
-    gamma = 1.3
-    # All this is to solve for MachOut
-    c_p = gamma*specgasconst/(gamma-1)
-    totaltemp1 = TotalTemp(MachIn, TempStatIn)
-
-    value = (1+gamma)/(1+gamma*MachIn**2)**2
-
-    temp_tot_star = totaltemp1 / (value*MachIn**2 * (2+(gamma-1)*MachIn**2))
-    tempadd = HeatIn/c_p
-    totaltemp2 = totaltemp1 + tempadd
-    fv = totaltemp2/temp_tot_star # fracval
-    p0 = (gamma+1)*(gamma-1) - fv*gamma**2
-    p1 = 2*(gamma+1 - gamma*fv)
-    p2 = -1*fv
-    coeffs = [p0,p1,p2]
-    roots = np.roots(coeffs)
-    msquared = -1
-    for x in roots:
-        if 1e-5 <= x <= 1:
-            msquared = x
-    MachOut = math.sqrt(msquared)
-    TempStatOut = StaticTemp(MachOut, totaltemp2)
-    def value1(Mach):
-        return((1+gamma)/(1+gamma*Mach**2))
-    
-    press_star = PressStatIn/value1(MachIn)
-    PressStatOut = press_star * value1(MachOut)
-    dens_star = DensStatIn * value1(MachIn)*MachIn**2
-    DensStatOut = dens_star / (value1(MachOut)*MachOut**2)
-
-    return (MachOut, PressStatOut, TempStatOut, DensStatOut)
-
-
-
-# SUBSONIC FANNO FLOW, for supersonic change the bounds of Brents stuff
-# Inputs: Mach In, Static Pressure In, Static Temperature In, Static Density In, Friction Factor (fbar), Distance, Diameter
-# Outputs: Mach Out, Static Pressure Out, Static Temperature Out, Static Density Out
-def FannoFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, FrictFact, Dist, Diam) -> tuple:
-    # Canino said gamma is like 1.3 when you increase pressure
-    # Fanno flow is basically only used in combustor/past the inlet so its hot flow
-    gamma = 1.3
-    # Simplify Calcs
-    def value(Mach):
-        return ((gamma+1)/(2+(gamma-1)*Mach**2))
-    
-    p_star = PressStatIn * MachIn / math.sqrt(value(MachIn))
-    t_star = TempStatIn / value(MachIn)
-    d_star = DensStatIn * MachIn * math.sqrt(value(MachIn))\
-
-    # Solve For l star
-    a = (1 - MachIn**2)/(gamma*MachIn**2)
-    b = ((gamma+1)/(2*gamma))*math.log(value(MachIn)*MachIn**2)
-
-    # Solve for final Right Hand Side Value
-    val1 = a+b
-    diststar1 = val1 * Diam/FrictFact
-    diststar2 = diststar1 - Dist
-    val2 = diststar2*FrictFact/Diam
-
-    # Find MachOut Using Brents
-    def BrentFuncResidual(Mach):
-        a1 = (1 - Mach**2)/(gamma*Mach**2)
-        b1 = ((gamma+1)/(2*gamma))*math.log(value(Mach)*Mach**2)
-        return (a1+b1-val2)
-    
-    MachOut, result = brentq(BrentFuncResidual, 1e-5, 1.0, full_output=True)
-    if not result.converged:
-        raise RuntimeError("Root finder failed to converge.")
-
-    PressStatOut = p_star * math.sqrt(value(MachOut)) / MachOut
-    TempStatOut = t_star * value(MachOut)
-    DensStatOut = d_star/(math.sqrt(value(MachOut))*MachOut)
-
-    return (MachOut, PressStatOut, TempStatOut, DensStatOut)
+# # gamma = k
+"""Mach Number Diff eq"""
+"""
 
 
 
 
-# Faster Call equations lmao
-def osr(MachIn, BetaRelative, PressTotIn, TempTotIn, DensIn):
-    return ObliqueShock(MachIn, BetaRelative, PressTotIn, TempTotIn, DensIn)
+REDO WITH NEG NUMBERS
 
-def nsr(MachIn, PressTotIn, TempIn, DensIn):
-    return NormalShock(MachIn, PressTotIn, TempIn, DensIn)
 
-def tp(Mach, static_pressure):
-    return TotalPressure(Mach, static_pressure)
 
-def sp(Mach, total_pressure):
-    return StaticPressure(Mach, total_pressure)
 
-def fta(MachIn, Area):
-    return FindThroatArea(MachIn, Area)
+"""
+# Diff eq
+# dM^2/M^2 = -M_Fa*dA + M_Fb*dQ + M_Fc*dx - M_Fd*dk
 
-def fwa(MachOut, ThroatArea):
-    return FindWantedArea(MachOut, ThroatArea)
+def M_Fa(Mach, k, Area):
+    a = 2*(1+ .5*(k-1)*Mach**2)
+    b = (1-Mach**2)
+    return (a/(b*Area))
 
-def tt(Mach, static_temp):
-    return TotalTemp(Mach, static_temp)
+def M_Fb(Mach, k, C_p, Temp):
+    a = (1 + k*Mach**2)/(1 - Mach**2)
+    return (a/(C_p * Temp))
 
-def st(Mach, total_temp):
-    return StaticTemp(Mach, total_temp)
+def M_Fc(Mach, k, Darcy, diameter):
+    a = k*Mach**2 * (1 + (k-16/2)*Mach**2)
+    b = (1-Mach**2)
+    return (a*Darcy/(b*diameter))
 
-def td(Mach, static_density):
-    return TotalDensity(Mach, static_density)
+def M_Fd(k):
+    return 1/k
 
-def sd(Mach, total_density):
-    return StaticDensity(Mach, total_density)
+"""Press Diff Eq"""
+# dP/P = P_Fa*dA - P_Fb*dQ - P_Fc*dx
 
-def ff(MachIn, PressStatIn, TempStatIn, DensStatIn, FrictFact, Dist, Diam):
-    return FannoFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, FrictFact, Dist, Diam)
+def P_Fa(Mach, k, Area):
+    a = k*Mach**2 / (1-Mach**2)
+    return (a/Area)
 
-def rf(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn):
-    return RayleighFlow(MachIn, PressStatIn, TempStatIn, DensStatIn, HeatIn)
+def P_Fb(Mach, k, C_p, Temp):
+    a = 1*k*Mach**2 / (1-Mach**2)
+    return (a/(C_p*Temp))
 
-def fmp(presstot, press):
-    return FindMachPress(presstot, press)
+def P_Fc(Mach, k, Darcy, diameter):
+    a = 1*k*Mach**2*(1 + (k-1)*Mach**2)
+    b = 2*(1-Mach**2)
+    return (a*Darcy/(b*diameter))
+
+
+"""Temp Diff Eq"""
+# dP/P = T_Fa*dA + T_Fb*dQ - T_Fc*dx
+
+def T_Fa(Mach, k, Area):
+    a = (k-1)*Mach**2 / (1-Mach**2)
+    return (a/Area)
+
+def T_Fb(Mach, k, C_p, Temp):
+    a = (1-k*Mach**2) / (1-Mach**2)
+    return (a/(C_p * Temp))
+
+def T_Fc(Mach, k, Darcy, diameter):
+    a = 1*k*(k-1)*Mach**4
+    b = 2*(1-Mach**2)
+    return(a*Darcy/(b*diameter))
+
+numsteps = 1e4
+tot_dist = .7
+tot_heat = 43.5e6
+locs = np.linspace(0,tot_dist,numsteps)
+machs = [0]*numsteps
+machsquared = [0]*numsteps
+pressures = [0]*numsteps
+temps = [0]*numsteps
+densities = [0]*numsteps
+areas = [0]*numsteps
+radiuses = [0]*numsteps
+
+machs[0] = exit_sub_mach
+machsquared[0] = exit_sub_mach**2
+pressures[0] = e_sub_press_stat
+temps[0] = e_sub_temp_stat
+densities[0] = e_sub_dens_stat
+areas[0] = e_sub_area
+radiuses[0] = math.sqrt(e_sub_area/math.pi)
+
+"""CHANGE numsteps and totvals are up^"""
+darcy = .02
+dx = tot_dist/numsteps
+dQ = tot_heat/numsteps 
+dP = 0
+past_cp = 0
+past_cv = 0
+for i in range(1, numsteps):
+    c_p = cp.PropsSI('CPMASS', 'P', pressures[i-1], 'D', densities[i-1], 'Air')
+    c_v = cp.PropsSI('CVMASS', 'P', pressures[i-1], 'D', densities[i-1], 'Air')
+    k = c_p/c_v
+
+    mfa = M_Fa(machs[i-1], k, areas[i-1])
+    mfb = M_Fb(machs[i-1], k, c_p, temps[i-1])
+    mfc = M_Fc(machs[i-1], k, darcy, 2*radiuses[i-1])
+    mfd = M_Fd(k)
+
+    pfa = P_Fa(machs[i-1], k, areas[i-1])
+    pfb = P_Fb(machs[i-1], k, c_p, temps[i-1])
+    pfc = P_Fc(machs[i-1], k, darcy, 2*radiuses[i-1])
+
+    tfa = T_Fa(machs[i-1], k, areas[i-1])
+    tfb = T_Fb(machs[i-1], k, c_p, temps[i-1])
+    tfc = T_Fc(machs[i-1], k, darcy, 2*radiuses[i-1])
+
+    """What is dk
+    Prolly not right"""
+    dk = c_p/c_v - past_cp/past_cv
+
+    # Start from dP/p = 0
+    dA = (dP + pfb*dQ + pfc*dx)/pfa
+    dT = (tfa*dA + tfb*dQ + tfc*dx)*temps[i-1]
+    dmachsquared = (mfa*dA + mfb*dQ + mfc*dx + mfd*dk)
+
+    areas[i] = areas[i-1] + dA
+    temps[i] = temps[i-1] + dT
+    machsquared[i] = machsquared[i-1] + dmachsquared
+    if dmachsquared >= 0:
+        machs[i] = machs[i-1] + math.sqrt(dmachsquared)
+    else:
+        machs[i] = machs[i-1] - math.sqrt(abs(dmachsquared))
+    # Unnecessary
+    pressures[i] = pressures[i-1] + dP
+    # Ideal gas law is used for influence coeffients
+    densities[i] = pressures[i]/(specgasconst*temps[i])
+    if dA >= 0:
+        radiuses[i] = radiuses[i-1] + math.sqrt(dA/math.pi)
+    else:
+        radiuses[i] = radiuses[i-1] - math.sqrt(dA/math.pi)
+
+
+# Plotting Combustor Rayleigh + Fanno
+fig, axes = plt.subplots(nrows=3, ncols=2, sharex=True)
+ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
+
+ax1.plot(locs, machs)
+ax1.set_ylabel('Mach #')
+
+ax2.plot(locs, pressures)
+ax2.set_ylabel('Pressure')
+
+ax3.plot(locs, temps)
+ax3.set_ylabel('Temperature')
+
+ax4.plot(locs, densities)
+ax4.set_ylabel('Density')
+
+ax5.plot(locs, radiuses)
+ax5.set_ylabel('Radius')
+ax5.set_xlabel('Location')
+
+ax6.plot(locs, machsquared)
+ax6.set_ylabel('Speed')
+ax6.set_xlabel('Machsquared')
+
+plt.tight_layout()
+plt.show(block = False)
+
+# close it?
+close = 0
+close = input('type literally anything and hit enter to close the window \n')
+if close != 0:
+    plt.close()
